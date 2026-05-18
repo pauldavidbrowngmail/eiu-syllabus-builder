@@ -103,9 +103,10 @@ header .sub{font-size:13px;opacity:.7;margin-left:auto}
   <div class="row2" style="margin-bottom:10px">
     <div class="fg"><label>Term</label>
       <select id="termSel">
-        <option value="202610">Spring 2026</option>
-        <option value="202680" selected>Fall 2026</option>
-        <option value="202710">Spring 2027</option>
+        <option value="202630">Spring 2026</option>
+        <option value="202660">Summer 2026</option>
+        <option value="202690" selected>Fall 2026</option>
+        <option value="202730">Spring 2027</option>
       </select>
     </div>
     <div class="fg"><label>CRN</label><input id="crnIn" placeholder="e.g. 90933" maxlength="6"/></div>
@@ -303,7 +304,7 @@ function addObj(listId, placeholder) {
 // ── Collect all form data into one object ─────────────────────────────────────
 function collect() {
   const termCode = el('termSel')?.value || '202680';
-  const termLabels = {'202610':'Spring 2026','202680':'Fall 2026','202710':'Spring 2027'};
+  const termLabels = {'202630':'Spring 2026','202660':'Summer 2026','202690':'Fall 2026','202730':'Spring 2027'};
 
   const textbooks = [];
   el('tbookRows')?.querySelectorAll('.row2').forEach(r => {
