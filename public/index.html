@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EIU Syllabus Builder — Lumpkin College</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--blue:#002d5a;--gold:#c8962c;--gold-lt:#f5e9cd;--r:6px;--border:1px solid rgba(0,45,90,.14)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f7f4;color:#1a1a2e;min-height:100vh}
+header{background:var(--blue);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:14px}
+header h1{font-size:18px;font-weight:600}
+header .sub{font-size:13px;opacity:.7;margin-left:auto}
+.shell{max-width:860px;margin:0 auto;padding:28px 18px 80px}
+.step-bar{display:flex;border:var(--border);border-radius:8px;overflow:hidden;margin-bottom:26px;background:#fff}
+.step{flex:1;padding:10px 4px;text-align:center;font-size:11px;font-family:monospace;color:#888;cursor:pointer;border-right:var(--border);transition:background .14s,color .14s}
+.step:last-child{border-right:none}
+.step.active{background:var(--blue);color:#fff;font-weight:600}
+.step.done{background:var(--gold-lt);color:#7a5800}
+.step .n{display:block;font-size:10px;opacity:.65;margin-bottom:1px}
+.panel{display:none}.panel.on{display:block}
+.slbl{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-bottom:9px;margin-top:18px}
+.slbl:first-child{margin-top:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:12px;font-weight:500;color:#555}
+.fg input,.fg select,.fg textarea{font-size:13px;padding:8px 11px;border:var(--border);border-radius:var(--r);background:#fff;color:#1a1a2e;outline:none;font-family:inherit;resize:vertical;width:100%}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--blue)}
+.fg input.auto{background:#e8f0fe;border-color:#b0c8f5;color:#0c2a6e}
+.fg textarea.auto{background:#e8f0fe;border-color:#b0c8f5;color:#0c2a6e}
+.stag{font-size:9px;font-family:monospace;padding:1px 5px;border-radius:3px;display:inline-block;margin-top:2px}
+.stag.b{background:#e8f0fe;color:#1a3a8a}.stag.t{background:var(--gold-lt);color:#7a5800}.stag.m{background:#e6f4ea;color:#1a5c32}
+.btn{font-family:monospace;font-size:12px;font-weight:600;padding:9px 20px;border-radius:var(--r);cursor:pointer;border:none;transition:opacity .15s}
+.btn.pri{background:var(--blue);color:#fff}.btn.sec{background:transparent;color:var(--blue);border:1px solid var(--blue)}
+.btn.gold{background:var(--gold);color:#5a3500}.btn:hover{opacity:.85}.btn:disabled{opacity:.4;cursor:not-allowed}
+.nav{display:flex;justify-content:space-between;margin-top:28px;padding-top:16px;border-top:var(--border);gap:10px;flex-wrap:wrap}
+.stat{font-family:monospace;font-size:11px;padding:8px 12px;border-radius:var(--r);margin:10px 0;display:none}
+.stat.load{background:#e8f0fe;color:#1a56c4;display:block}
+.stat.ok{background:#e6f4ea;color:#1a7a3a;display:block}
+.stat.err{background:#fee;color:#c00;display:block}
+.grading-tbl{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px}
+.grading-tbl th{background:var(--blue);color:#fff;padding:8px 10px;text-align:left;font-size:12px}
+.grading-tbl td{padding:6px 8px;border-bottom:var(--border)}
+.grading-tbl input{border:none;background:transparent;font-size:13px;color:#1a1a2e;width:100%;outline:none;font-family:inherit}
+.grading-tbl input:focus{background:#f0f5ff;border-radius:3px}
+.add-btn{font-family:monospace;font-size:11px;color:var(--blue);background:transparent;border:1px dashed rgba(0,45,90,.3);border-radius:var(--r);padding:5px 14px;cursor:pointer;margin-bottom:14px}
+.add-btn:hover{background:rgba(0,45,90,.05)}
+.obj-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.obj-row{display:flex;gap:8px}
+.obj-row input{flex:1;font-size:13px;padding:7px 10px;border:var(--border);border-radius:var(--r);background:#fff;color:#1a1a2e;outline:none;font-family:inherit}
+.obj-row input:focus{border-color:var(--blue)}
+.rm{background:transparent;border:none;cursor:pointer;color:#ccc;font-size:18px;line-height:1;padding:3px;flex-shrink:0}
+.rm:hover{color:#c00}
+.boiler{background:#f9f8f5;border-left:3px solid var(--blue);padding:10px 14px;margin-bottom:9px;border-radius:0 var(--r) var(--r) 0}
+.boiler strong{font-size:12px;color:var(--blue);display:block;margin-bottom:3px}
+.boiler p{font-size:12px;color:#555;line-height:1.55}
+.boiler .ok-tag{font-size:9px;font-family:monospace;color:#1a5c32;background:#e6f4ea;border-radius:3px;padding:1px 5px;display:inline-block;margin-top:5px}
+.dl-row{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.dl-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:var(--r);font-family:monospace;font-size:12px;font-weight:600;cursor:pointer;border:none;text-decoration:none;transition:opacity .15s}
+.dl-btn.docx{background:var(--blue);color:#fff}
+.dl-btn.pdf{background:var(--gold);color:#5a3500}
+.dl-btn:hover{opacity:.85}
+.dl-btn:disabled{opacity:.4;cursor:not-allowed}
+.preview{background:#fff;border:var(--border);border-radius:8px;padding:20px 24px;margin-top:12px;font-size:13px;line-height:1.7}
+.pv-title{font-size:21px;font-weight:700;color:var(--blue);text-align:center;margin-bottom:4px}
+.pv-sub{font-size:14px;font-weight:600;text-align:center;margin-bottom:2px}
+.pv-meta{font-size:12px;color:var(--gold);text-align:center;margin-bottom:14px}
+.pv-rule{border:none;border-top:2px solid var(--blue);margin:12px 0}
+.pv-sh{font-size:13px;font-weight:700;color:var(--blue);border-bottom:2px solid var(--gold);padding-bottom:3px;margin:14px 0 7px}
+.pv-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}
+.pv-tbl td{padding:5px 8px;border:1px solid #e0e0e0}
+.pv-tbl td:first-child{background:#e8f0f7;font-weight:500;color:var(--blue);width:30%}
+.pv-boiler{background:#f9f8f5;border-left:3px solid var(--blue);padding:7px 11px;margin-bottom:7px;font-size:12px;line-height:1.5}
+@media(max-width:560px){.row2,.row3{grid-template-columns:1fr}.step .n{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div style="background:#fff;padding:4px 8px;border-radius:4px">
+    <span style="color:var(--blue);font-weight:700;font-size:13px">EIU</span>
+  </div>
+  <h1>Syllabus Builder</h1>
+  <span class="sub">Lumpkin College of Business &amp; Technology</span>
+</header>
+
+<div class="shell">
+<div class="step-bar" id="stepBar">
+  <div class="step active" onclick="go(0)"><span class="n">01</span>Course</div>
+  <div class="step" onclick="go(1)"><span class="n">02</span>Instructor</div>
+  <div class="step" onclick="go(2)"><span class="n">03</span>Textbook</div>
+  <div class="step" onclick="go(3)"><span class="n">04</span>Grading</div>
+  <div class="step" onclick="go(4)"><span class="n">05</span>Objectives</div>
+  <div class="step" onclick="go(5)"><span class="n">06</span>Policies</div>
+  <div class="step" onclick="go(6)"><span class="n">07</span>Boilerplate</div>
+  <div class="step" onclick="go(7)"><span class="n">08</span>Preview &amp; Export</div>
+</div>
+<div class="stat" id="stat"></div>
+
+<!-- ── Step 0: Course ──────────────────────────────────────────────────────── -->
+<div class="panel on" id="p0">
+  <div class="slbl">Banner SSB lookup</div>
+  <div class="row2" style="margin-bottom:10px">
+    <div class="fg"><label>Term</label>
+      <select id="termSel">
+        <option value="202610">Spring 2026</option>
+        <option value="202680" selected>Fall 2026</option>
+        <option value="202710">Spring 2027</option>
+      </select>
+    </div>
+    <div class="fg"><label>CRN</label><input id="crnIn" placeholder="e.g. 90933" maxlength="6"/></div>
+  </div>
+  <button class="btn pri" onclick="fetchBanner()" id="bannerBtn">Fetch from Banner</button>
+  <div class="slbl" style="margin-top:20px">Course details</div>
+  <div class="row3">
+    <div class="fg"><label>Course ID</label><input id="fId" class="auto" placeholder="BUS 2750"/><span class="stag b">Banner SSB</span></div>
+    <div class="fg"><label>Section</label><input id="fSec" class="auto" placeholder="001"/><span class="stag b">Banner SSB</span></div>
+    <div class="fg"><label>Credit hours</label><input id="fCred" class="auto" placeholder="3 Credit Hours"/><span class="stag b">Banner SSB</span></div>
+  </div>
+  <div class="fg" style="margin-top:10px"><label>Course title</label><input id="fTitle" class="auto" placeholder="Business Law"/><span class="stag b">Banner SSB</span></div>
+  <div class="row2" style="margin-top:10px">
+    <div class="fg"><label>Meeting days &amp; times</label><input id="fMeet" class="auto" placeholder="TR 11:00 AM – 12:15 PM"/><span class="stag b">Banner SSB</span></div>
+    <div class="fg"><label>Room / location</label><input id="fRoom" class="auto" placeholder="Lumpkin Hall 1030"/><span class="stag b">Banner SSB</span></div>
+  </div>
+  <div class="fg" style="margin-top:10px"><label>Term dates</label><input id="fDates" class="auto" placeholder="Aug 24 – Dec 12, 2026"/><span class="stag b">Banner SSB</span></div>
+  <div class="fg" style="margin-top:10px"><label>Catalog description</label><textarea id="fDesc" class="auto" rows="4" placeholder="Fetched from Banner…"></textarea><span class="stag b">Banner SSB</span></div>
+  <div class="fg" style="margin-top:10px"><label>Prerequisites</label><input id="fPrereq" class="auto" placeholder="None"/><span class="stag b">Banner SSB</span></div>
+  <div class="nav"><div></div><button class="btn pri" onclick="go(1)">Next: Instructor →</button></div>
+</div>
+
+<!-- ── Step 1: Instructor ─────────────────────────────────────────────────── -->
+<div class="panel" id="p1">
+  <div class="slbl">Instructor of record</div>
+  <div class="fg"><label>Name</label><input id="fInstr" class="auto" placeholder="Bates, Carolyn"/><span class="stag b">Banner SSB</span></div>
+  <div class="row2" style="margin-top:10px">
+    <div class="fg"><label>Email</label><input id="fEmail" placeholder="netid@eiu.edu"/><span class="stag m">Instructor input</span></div>
+    <div class="fg"><label>Office location</label><input id="fOffice" placeholder="Lumpkin Hall 4042"/><span class="stag m">Instructor input</span></div>
+  </div>
+  <div class="fg" style="margin-top:10px"><label>Office hours</label><input id="fOHours" placeholder="TR 9:00–11:00 AM or by appointment"/><span class="stag m">Instructor input</span></div>
+  <div class="nav"><button class="btn sec" onclick="go(0)">← Course</button><button class="btn pri" onclick="go(2)">Next: Textbook →</button></div>
+</div>
+
+<!-- ── Step 2: Textbook ───────────────────────────────────────────────────── -->
+<div class="panel" id="p2">
+  <div class="slbl">TRS inventory lookup</div>
+  <div class="row2" style="margin-bottom:10px">
+    <div class="fg"><label>Course code</label><input id="fTRSCode" class="auto" placeholder="BUS2750"/><span class="stag t">Auto-derived from Banner</span></div>
+    <button class="btn sec" style="align-self:flex-end" onclick="fetchTRS()" id="trsBtn">Fetch from TRS</button>
+  </div>
+  <div id="tbookRows"></div>
+  <button class="add-btn" onclick="addBook()">+ Add textbook manually</button>
+  <div class="nav"><button class="btn sec" onclick="go(1)">← Instructor</button><button class="btn pri" onclick="go(3)">Next: Grading →</button></div>
+</div>
+
+<!-- ── Step 3: Grading ────────────────────────────────────────────────────── -->
+<div class="panel" id="p3">
+  <div class="slbl">Grading components</div>
+  <table class="grading-tbl"><thead><tr><th style="width:38%">Component</th><th style="width:16%">Weight</th><th>Notes</th><th style="width:36px"></th></tr></thead><tbody id="gradeTbl"></tbody></table>
+  <button class="add-btn" onclick="addGrade()">+ Add component</button>
+  <div class="slbl">Grading scale</div>
+  <div class="fg"><input id="fGradeScale" value="A: 93–100  |  A–: 90–92  |  B+: 87–89  |  B: 83–86  |  B–: 80–82  |  C: 70–76  |  D: 60–69  |  F: below 60"/></div>
+  <div class="nav"><button class="btn sec" onclick="go(2)">← Textbook</button><button class="btn pri" onclick="go(4)">Next: Objectives →</button></div>
+</div>
+
+<!-- ── Step 4: Objectives ─────────────────────────────────────────────────── -->
+<div class="panel" id="p4">
+  <div class="slbl">Course learning objectives</div>
+  <p style="font-size:12px;color:#888;margin-bottom:10px">Upon successful completion, students will be able to:</p>
+  <div class="obj-list" id="objList"></div>
+  <button class="add-btn" onclick="addObj('objList','Learning objective…')">+ Add objective</button>
+  <div class="slbl" style="margin-top:16px">Course topics (tentative)</div>
+  <div class="obj-list" id="topicList"></div>
+  <button class="add-btn" onclick="addObj('topicList','Course topic…')">+ Add topic</button>
+  <div class="nav"><button class="btn sec" onclick="go(3)">← Grading</button><button class="btn pri" onclick="go(5)">Next: Policies →</button></div>
+</div>
+
+<!-- ── Step 5: Policies ───────────────────────────────────────────────────── -->
+<div class="panel" id="p5">
+  <div class="slbl">Course policies (instructor-defined)</div>
+  <div class="fg"><label>Attendance</label><textarea id="fAttend" rows="3" placeholder="Regular attendance is expected…"></textarea><span class="stag m">Instructor input</span></div>
+  <div class="fg" style="margin-top:10px"><label>Late / missed work</label><textarea id="fLate" rows="3" placeholder="Late assignments will be penalized…"></textarea><span class="stag m">Instructor input</span></div>
+  <div class="fg" style="margin-top:10px"><label>AI use policy</label><textarea id="fAI" rows="3" placeholder="Use of AI writing tools is permitted for…"></textarea><span class="stag m">Instructor input</span></div>
+  <div class="nav"><button class="btn sec" onclick="go(4)">← Objectives</button><button class="btn pri" onclick="go(6)">Next: Boilerplate →</button></div>
+</div>
+
+<!-- ── Step 6: Boilerplate ────────────────────────────────────────────────── -->
+<div class="panel" id="p6">
+  <div class="slbl">Pre-loaded EIU institutional language</div>
+  <p style="font-size:12px;color:#888;margin-bottom:14px">Included automatically in every syllabus — no edits needed.</p>
+  <div class="boiler"><strong>Academic Integrity</strong><p>Students who engage in academic dishonesty may receive a failing grade and be referred to the Office of Student Standards. See the EIU Student Handbook for complete definitions.</p><span class="ok-tag">Pre-loaded · EIU approved</span></div>
+  <div class="boiler"><strong>ADA / Accessibility</strong><p>Students with disabilities should contact Student Accessibility Services, 1620 Old Main, (217) 581-6583, at the beginning of the semester.</p><span class="ok-tag">Pre-loaded · EIU approved</span></div>
+  <div class="boiler"><strong>Non-Discrimination and Anti-Harassment</strong><p>EIU prohibits discrimination and harassment based on race, color, religion, sex, national origin, age, disability, and other protected categories.</p><span class="ok-tag">Pre-loaded · EIU approved</span></div>
+  <div class="boiler"><strong>Title IX / Sexual Misconduct</strong><p>EIU does not tolerate sexual harassment or assault. Report to the Title IX Coordinator, 1204 Old Main, or visit eiu.edu/titleix.</p><span class="ok-tag">Pre-loaded · EIU approved</span></div>
+  <div class="boiler"><strong>D2L Brightspace</strong><p>Course materials and grades are maintained in D2L (eiu.edu/d2l). ITS support: (217) 581-4357.</p><span class="ok-tag">Pre-loaded · EIU approved</span></div>
+  <div class="boiler"><strong>Emergency Preparedness</strong><p>Follow university personnel instructions in emergencies. See eiu.edu/alerteiu for the ALERTEIU notification system.</p><span class="ok-tag">Pre-loaded · EIU approved</span></div>
+  <div class="nav"><button class="btn sec" onclick="go(5)">← Policies</button><button class="btn pri" onclick="buildPreview()">Preview syllabus →</button></div>
+</div>
+
+<!-- ── Step 7: Preview & Export ──────────────────────────────────────────── -->
+<div class="panel" id="p7">
+  <div class="slbl">Syllabus preview</div>
+  <div class="preview" id="previewDiv"></div>
+  <div class="dl-row">
+    <button class="dl-btn docx" id="dlDocx" onclick="download('docx')">⬇ Download .docx</button>
+    <button class="dl-btn pdf"  id="dlPdf"  onclick="download('pdf')">⬇ Download PDF</button>
+  </div>
+  <p style="font-size:11px;color:#999;margin-top:10px;font-family:monospace">Generated server-side · US Letter · EIU Lumpkin branding · boilerplate included</p>
+  <div class="nav"><button class="btn sec" onclick="go(6)">← Boilerplate</button><div></div></div>
+</div>
+</div>
+
+<script>
+const v = id => document.getElementById(id)?.value?.trim() || '';
+const el = id => document.getElementById(id);
+
+function go(n) {
+  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('on',i===n));
+  document.querySelectorAll('.step').forEach((s,i)=>{s.classList.remove('active','done');if(i===n)s.classList.add('active');else if(i<n)s.classList.add('done');});
+}
+
+function setStatus(type, msg) {
+  const s = el('stat'); s.className = 'stat ' + type; s.textContent = msg;
+}
+
+function setF(id, val) { const e = el(id); if(e) e.value = val || ''; }
+function setAuto(id, val) { setF(id, val); const e = el(id); if(e) e.classList.add('auto'); }
+
+// ── Banner fetch ──────────────────────────────────────────────────────────────
+async function fetchBanner() {
+  const crn = v('crnIn'), term = v('termSel');
+  if (!crn) { setStatus('err','Please enter a CRN.'); return; }
+  el('bannerBtn').disabled = true;
+  setStatus('load', `⟳ Calling Banner SSB for CRN ${crn}…`);
+  try {
+    const res = await fetch(`/api/banner?crn=${encodeURIComponent(crn)}&term=${encodeURIComponent(term)}`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Banner lookup failed');
+    const d = json.data;
+    setAuto('fId', d.courseId);    setAuto('fSec', d.section);
+    setAuto('fCred', d.credits);   setAuto('fTitle', d.courseTitle);
+    setAuto('fMeet', d.meetTime);  setAuto('fRoom', d.room);
+    setAuto('fDates', d.termDates || '');
+    setAuto('fDesc', d.description || '');
+    setAuto('fPrereq', d.prereq || 'None');
+    setAuto('fInstr', d.instructor);
+    setAuto('fTRSCode', d.courseCode);
+    setStatus('ok', `✓ Banner data loaded — ${d.courseId}: ${d.courseTitle} (${d.term})`);
+    // Auto-fetch TRS
+    setTimeout(() => fetchTRS(d.courseCode), 400);
+  } catch(err) {
+    setStatus('err', '✗ ' + err.message);
+  } finally {
+    el('bannerBtn').disabled = false;
+  }
+}
+
+// ── TRS fetch ─────────────────────────────────────────────────────────────────
+async function fetchTRS(codeOverride) {
+  const code = codeOverride || v('fTRSCode');
+  if (!code) return;
+  el('trsBtn') && (el('trsBtn').disabled = true);
+  setStatus('load', `⟳ Querying TRS inventory for ${code}…`);
+  try {
+    const res = await fetch(`/api/trs?courseCode=${encodeURIComponent(code)}`);
+    const json = await res.json();
+    el('tbookRows').innerHTML = '';
+    if (json.data?.length) {
+      json.data.forEach(b => addBookRow(b.title, b.author, true));
+      setStatus('ok', `✓ TRS returned ${json.data.length} textbook(s) for ${code}${json.source === 'cache' ? ' (cached)' : ''}`);
+    } else {
+      setStatus('ok', `No textbook found in TRS for ${code} — add manually if needed.`);
+    }
+  } catch(err) {
+    setStatus('err', 'TRS lookup failed — add textbook manually. (' + err.message + ')');
+  } finally {
+    el('trsBtn') && (el('trsBtn').disabled = false);
+  }
+}
+
+function addBookRow(title, author, auto) {
+  const wrap = el('tbookRows');
+  const d = document.createElement('div');
+  d.className = 'row2'; d.style.marginBottom = '8px';
+  const a = auto ? 'auto' : '';
+  d.innerHTML = `<div class="fg"><label>Title</label><input class="${a}" value="${title||''}" placeholder="Textbook title"/>${auto?'<span class="stag t">TRS Inventory</span>':''}</div><div class="fg"><label>Author(s)</label><input class="${a}" value="${author||''}" placeholder="Author, Name"/>${auto?'<span class="stag t">TRS Inventory</span>':''}</div>`;
+  wrap.appendChild(d);
+}
+function addBook() { addBookRow('','',false); }
+
+function addGrade(comp,wt,notes) {
+  const tb = el('gradeTbl');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><input placeholder="e.g. Exams (3)" value="${comp||''}"/></td><td><input placeholder="0%" value="${wt||''}"/></td><td><input placeholder="Notes…" value="${notes||''}"/></td><td><button class="rm" onclick="this.closest('tr').remove()">×</button></td>`;
+  tb.appendChild(tr);
+}
+
+function addObj(listId, placeholder) {
+  const d = document.createElement('div'); d.className = 'obj-row';
+  d.innerHTML = `<input placeholder="${placeholder}"/><button class="rm" onclick="this.closest('.obj-row').remove()">×</button>`;
+  el(listId).appendChild(d);
+}
+
+// ── Collect all form data into one object ─────────────────────────────────────
+function collect() {
+  const termCode = el('termSel')?.value || '202680';
+  const termLabels = {'202610':'Spring 2026','202680':'Fall 2026','202710':'Spring 2027'};
+
+  const textbooks = [];
+  el('tbookRows')?.querySelectorAll('.row2').forEach(r => {
+    const ins = r.querySelectorAll('input');
+    if (ins[0]?.value) textbooks.push({ title: ins[0].value.trim(), author: ins[1]?.value.trim() || '' });
+  });
+
+  const gradingWeights = [];
+  el('gradeTbl')?.querySelectorAll('tr').forEach(r => {
+    const ins = r.querySelectorAll('input');
+    if (ins[0]?.value) gradingWeights.push({ component: ins[0].value, weight: ins[1]?.value || '', notes: ins[2]?.value || '' });
+  });
+
+  const courseObjectives = [...el('objList')?.querySelectorAll('input') || []].map(i=>i.value).filter(Boolean);
+  const courseTopics = [...el('topicList')?.querySelectorAll('input') || []].map(i=>i.value).filter(Boolean);
+
+  return {
+    courseId: v('fId'), courseTitle: v('fTitle'), credits: v('fCred'),
+    crn: v('crnIn'), section: v('fSec'), term: termLabels[termCode] || termCode,
+    termDates: v('fDates'), meetTime: v('fMeet'), room: v('fRoom'),
+    instructor: v('fInstr'), email: v('fEmail'), office: v('fOffice'), officeHours: v('fOHours'),
+    description: v('fDesc') || document.getElementById('fDesc')?.value || '',
+    prereq: v('fPrereq'),
+    textbooks, gradingWeights,
+    gradingScale: v('fGradeScale'),
+    courseObjectives, courseTopics,
+    attendancePolicy: document.getElementById('fAttend')?.value || '',
+    latePolicy: document.getElementById('fLate')?.value || '',
+    aiPolicy: document.getElementById('fAI')?.value || '',
+  };
+}
+
+// ── Build HTML preview ────────────────────────────────────────────────────────
+function buildPreview() {
+  go(7);
+  const d = collect();
+  const objs = d.courseObjectives.map(o=>`<li>${o}</li>`).join('');
+  const grades = d.gradingWeights.map(g=>`<li>${g.component}  ${g.weight}${g.notes?' — '+g.notes:''}</li>`).join('');
+  el('previewDiv').innerHTML = `
+    <div class="pv-title">Course Syllabus</div>
+    <div class="pv-sub">${d.courseId}: ${d.courseTitle}</div>
+    <div class="pv-meta">${d.term}  ·  ${d.credits}  ·  Lumpkin College of Business &amp; Technology</div>
+    <hr class="pv-rule">
+    <div class="pv-sh">Course Information</div>
+    <table class="pv-tbl"><tr><td>CRN / Section</td><td>${d.crn} / ${d.section}</td></tr><tr><td>Meeting times</td><td>${d.meetTime}</td></tr><tr><td>Location</td><td>${d.room}</td></tr><tr><td>Term dates</td><td>${d.termDates}</td></tr></table>
+    <div class="pv-sh">Instructor</div>
+    <table class="pv-tbl"><tr><td>Name</td><td>${d.instructor}</td></tr><tr><td>Email</td><td>${d.email}</td></tr><tr><td>Office</td><td>${d.office}</td></tr><tr><td>Hours</td><td>${d.officeHours}</td></tr></table>
+    ${d.textbooks.length ? `<div class="pv-sh">Textbook(s)</div>${d.textbooks.map(t=>`<p style="font-size:12px">${t.title} — ${t.author}</p>`).join('')}` : ''}
+    ${objs ? `<div class="pv-sh">Learning Objectives</div><ul style="font-size:12px;padding-left:18px;line-height:1.7">${objs}</ul>` : ''}
+    ${grades ? `<div class="pv-sh">Grading</div><ul style="font-size:12px;padding-left:18px;line-height:1.7">${grades}</ul>` : ''}
+    <div class="pv-sh">University Policies (pre-loaded)</div>
+    <div class="pv-boiler"><strong>Academic Integrity · ADA · Non-Discrimination · Title IX · D2L · Emergency Preparedness</strong><br><span style="font-size:11px;color:#888">Full approved language included in exported document</span></div>`;
+}
+
+// ── Download ──────────────────────────────────────────────────────────────────
+async function download(format) {
+  const d = collect();
+  if (!d.courseId) { setStatus('err','Complete course lookup before generating.'); go(0); return; }
+  el('dlDocx').disabled = true; el('dlPdf').disabled = true;
+  setStatus('load', `⟳ Generating ${format.toUpperCase()}…`);
+  try {
+    if (format === 'both' || format === 'docx' || format === 'pdf') {
+      const res = await fetch(`/api/generate?format=${format}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(d)
+      });
+      if (format === 'docx' || format === 'pdf') {
+        // Direct file download
+        if (!res.ok) throw new Error(`Server error ${res.status}`);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(d.courseId||'Syllabus').replace(/\s/g,'')}_${(d.term||'').replace(/\s/g,'')}.${format}`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus('ok', `✓ ${format.toUpperCase()} downloaded.`);
+      }
+    }
+  } catch(err) {
+    setStatus('err', 'Generation failed: ' + err.message);
+  } finally {
+    el('dlDocx').disabled = false; el('dlPdf').disabled = false;
+  }
+}
+
+// Initialise with one empty row each
+addGrade(); addObj('objList','Learning objective…'); addObj('topicList','Course topic…');
+</script>
+</body>
+</html>

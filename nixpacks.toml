@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "libreoffice", "chromium", "nss", "nspr", "at-spi2-atk", "cups", "libdrm", "libxkbcommon", "mesa"]
+
+[phases.install]
+cmds = ["npm ci --omit=dev"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "node src/server.js"
