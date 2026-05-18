@@ -50,34 +50,45 @@ function parseMeetings(data) {
   };
 }
 
-// GET /api/banner?crn=90933&term=202680
+// Collect all Set-Cookie values from an axios response into a single cookie string
+function extractCookies(response) {
+  const raw = response.headers['set-cookie'] || [];
+  return raw.map(c => c.split(';')[0]).join('; ');
+}
+
+// GET /api/banner?crn=90933&term=202630
 router.get('/', async (req, res) => {
   const { crn, term } = req.query;
   if (!crn || !term) {
     return res.status(400).json({ error: 'crn and term are required' });
   }
 
+  const HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+    'Accept': 'application/json, text/html, */*',
+    'Referer': `${BASE}/classSearch/classSearch`,
+  };
+
   try {
-    // ── Step 1: establish term session ───────────────────────────────────────
-    const session = axios.create({
-      baseURL: BASE,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; EIU-Syllabus-Builder/1.0)',
-        'Accept': 'application/json, text/html, */*',
-      },
-      withCredentials: true,
+    // ── Step 1: load term selection page → capture session cookie ────────────
+    const termPageRes = await axios.get(`${BASE}/term/termSelection`, {
+      params: { mode: 'search' },
+      headers: HEADERS,
     });
+    let cookies = extractCookies(termPageRes);
 
-    // Hit the term selection page to get a session cookie
-    await session.get(`/term/termSelection?mode=search`);
+    // ── Step 2: POST to set the active term, forwarding the session cookie ───
+    const termPostRes = await axios.post(
+      `${BASE}/term/search`,
+      `term=${term}&studyPath=&studyPathText=&startDatepicker=&endDatepicker=`,
+      { headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookies } }
+    );
+    // Merge any new cookies from the term-post response
+    const newCookies = extractCookies(termPostRes);
+    if (newCookies) cookies = [cookies, newCookies].filter(Boolean).join('; ');
 
-    // POST to set the active term
-    await session.post('/term/search', `term=${term}&studyPath=&studyPathText=&startDatepicker=&endDatepicker=`, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    });
-
-    // ── Step 2: search by CRN ────────────────────────────────────────────────
-    const searchRes = await session.get('/searchResults/searchResults', {
+    // ── Step 3: search by CRN, forwarding cookies ────────────────────────────
+    const searchRes = await axios.get(`${BASE}/searchResults/searchResults`, {
       params: {
         txt_term: term,
         txt_crn: crn,
@@ -85,7 +96,8 @@ router.get('/', async (req, res) => {
         pageMaxSize: 1,
         sortColumn: 'subjectDescription',
         sortDirection: 'asc',
-      }
+      },
+      headers: { ...HEADERS, 'Cookie': cookies },
     });
 
     if (!searchRes.data?.success || !searchRes.data?.data?.length) {
@@ -96,25 +108,25 @@ router.get('/', async (req, res) => {
 
     const parsed = parseMeetings(searchRes.data);
 
-    // ── Step 3: fetch catalog description ────────────────────────────────────
+    // ── Step 4: fetch catalog description ────────────────────────────────────
     try {
-      const descRes = await session.get('/searchResults/getCourseDescription', {
-        params: { term, courseReferenceNumber: crn }
+      const descRes = await axios.get(`${BASE}/searchResults/getCourseDescription`, {
+        params: { term, courseReferenceNumber: crn },
+        headers: { ...HEADERS, 'Cookie': cookies },
       });
-      // Description comes back as an HTML string — strip tags
       const raw = descRes.data || '';
       parsed.description = raw.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
     } catch {
       parsed.description = '';
     }
 
-    // ── Step 4: fetch prerequisites ──────────────────────────────────────────
+    // ── Step 5: fetch prerequisites ──────────────────────────────────────────
     try {
-      const prereqRes = await session.get('/searchResults/getSectionPrerequisites', {
-        params: { term, courseReferenceNumber: crn }
+      const prereqRes = await axios.get(`${BASE}/searchResults/getSectionPrerequisites`, {
+        params: { term, courseReferenceNumber: crn },
+        headers: { ...HEADERS, 'Cookie': cookies },
       });
       const html = prereqRes.data || '';
-      // Parse the simple prereq table — extract text content
       const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
       parsed.prereq = text || 'None';
     } catch {
