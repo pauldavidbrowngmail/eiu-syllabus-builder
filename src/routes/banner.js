@@ -67,23 +67,27 @@ router.get('/', async (req, res) => {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
     'Accept': 'application/json, text/html, */*',
     'Referer': `${BASE}/classSearch/classSearch`,
+    'X-Requested-With': 'XMLHttpRequest',
   };
 
   try {
-    // ── Step 1: load term selection page → capture session cookie ────────────
-    const termPageRes = await axios.get(`${BASE}/term/termSelection`, {
-      params: { mode: 'search' },
-      headers: HEADERS,
+    // ── Step 1: hit the classSearch page to establish a JSESSIONID ───────────
+    const initRes = await axios.get(`${BASE}/classSearch/classSearch`, {
+      headers: { ...HEADERS, Accept: 'text/html,*/*' },
+      maxRedirects: 5,
     });
-    let cookies = extractCookies(termPageRes);
+    let cookies = extractCookies(initRes);
 
-    // ── Step 2: POST to set the active term, forwarding the session cookie ───
+    // ── Step 2: POST to set the active term ───────────────────────────────────
     const termPostRes = await axios.post(
       `${BASE}/term/search`,
       `term=${term}&studyPath=&studyPathText=&startDatepicker=&endDatepicker=`,
-      { headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookies } }
+      {
+        params: { mode: 'search' },
+        headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookies },
+        maxRedirects: 5,
+      }
     );
-    // Merge any new cookies from the term-post response
     const newCookies = extractCookies(termPostRes);
     if (newCookies) cookies = [cookies, newCookies].filter(Boolean).join('; ');
 
@@ -133,6 +137,7 @@ router.get('/', async (req, res) => {
       parsed.prereq = 'None';
     }
 
+    res.set('Cache-Control', 'no-store');
     res.json({ success: true, data: parsed });
 
   } catch (err) {

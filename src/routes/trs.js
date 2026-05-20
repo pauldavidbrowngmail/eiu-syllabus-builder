@@ -42,38 +42,77 @@ router.get('/', async (req, res) => {
     // Load the inventory page
     await page.goto(TRS_URL, { waitUntil: 'networkidle2', timeout: 30000 });
 
-    // Type the course code into the search box and trigger the search
-    // The page has a text input and a Search button
+    // The TRS page search box — try the combined code first, then with a space
+    // e.g. "ACC4760" or "ACC 4760"
+    const codeSpaced = code.replace(/^([A-Z]+)(\d)/, '$1 $2');
+
     await page.waitForSelector('input[type="text"]', { timeout: 10000 });
-    await page.type('input[type="text"]', code);
 
-    // Click Search — the page uses JS to populate the table
-    await Promise.all([
-      page.click('input[type="submit"], button[type="submit"], input[value="Search"]'),
-      page.waitForResponse(r => r.url().includes('eiu.edu'), { timeout: 15000 })
-        .catch(() => {}),
-    ]);
+    async function trySearch(inputValue) {
+      await page.$eval('input[type="text"]', el => { el.value = ''; });
+      await page.type('input[type="text"]', inputValue);
+      await Promise.all([
+        page.click('input[type="submit"], button[type="submit"], input[value="Search"]'),
+        page.waitForResponse(r => r.url().includes('eiu.edu'), { timeout: 15000 })
+          .catch(() => {}),
+      ]);
+      await new Promise(r => setTimeout(r, 2500));
+    }
 
-    // Give the AJAX table time to render
-    await new Promise(r => setTimeout(r, 2500));
+    await trySearch(codeSpaced);
 
-    // Extract table rows (skip the header row)
-    const books = await page.evaluate(() => {
-      const rows = document.querySelectorAll('table tr');
+    // Extract all table rows; detect header by looking for th or all-caps text
+    let books = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('table tr'));
+      // Find the header row to determine column positions
+      let authorCol = -1, titleCol = -1;
+      for (const row of rows) {
+        const headers = Array.from(row.querySelectorAll('th, td')).map(el => el.textContent.trim().toLowerCase());
+        const ai = headers.findIndex(h => h.includes('author'));
+        const ti = headers.findIndex(h => h.includes('title'));
+        if (ai !== -1 && ti !== -1) { authorCol = ai; titleCol = ti; break; }
+      }
+      // Fall back to common positions if header not found (course, section, author, title, ...)
+      if (authorCol === -1) { authorCol = 2; titleCol = 3; }
+
       const results = [];
-      rows.forEach((row, i) => {
-        if (i === 0) return; // skip header
-        const cells = row.querySelectorAll('td');
-        if (cells.length >= 3) {
-          const author = cells[1]?.textContent?.trim();
-          const title  = cells[2]?.textContent?.trim();
-          if (author && title && author !== 'Author') {
-            results.push({ author, title });
-          }
+      rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('td')).map(el => el.textContent.trim());
+        if (cells.length <= authorCol) return;
+        const author = cells[authorCol] || '';
+        const title  = cells[titleCol]  || '';
+        if (author && title && author.toLowerCase() !== 'author') {
+          results.push({ author, title });
         }
       });
       return results;
     });
+
+    // If nothing found with spaced code, retry with no space
+    if (books.length === 0 && codeSpaced !== code) {
+      await trySearch(code);
+      books = await page.evaluate(() => {
+        const rows = Array.from(document.querySelectorAll('table tr'));
+        let authorCol = 2, titleCol = 3;
+        for (const row of rows) {
+          const headers = Array.from(row.querySelectorAll('th, td')).map(el => el.textContent.trim().toLowerCase());
+          const ai = headers.findIndex(h => h.includes('author'));
+          const ti = headers.findIndex(h => h.includes('title'));
+          if (ai !== -1 && ti !== -1) { authorCol = ai; titleCol = ti; break; }
+        }
+        const results = [];
+        rows.forEach(row => {
+          const cells = Array.from(row.querySelectorAll('td')).map(el => el.textContent.trim());
+          if (cells.length <= authorCol) return;
+          const author = cells[authorCol] || '';
+          const title  = cells[titleCol]  || '';
+          if (author && title && author.toLowerCase() !== 'author') {
+            results.push({ author, title });
+          }
+        });
+        return results;
+      });
+    }
 
     await browser.close();
     browser = null;
