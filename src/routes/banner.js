@@ -7,46 +7,62 @@ const BASE = 'https://banner.eiu.edu/StudentRegistrationSsb/ssb';
 
 // ── Helper: parse meeting times out of Banner's meetingsFaculty array ────────
 function parseMeetings(data) {
-  const section = data?.data?.[0];
-  if (!section) return null;
+  // Banner SSB can wrap results under data.data or data.sections
+  const list = Array.isArray(data?.data) ? data.data
+             : Array.isArray(data?.sections) ? data.sections
+             : [];
+  const section = list[0];
+  if (!section) {
+    console.error('[Banner] parseMeetings: no section in response. Keys:', Object.keys(data || {}));
+    return null;
+  }
+  console.log('[Banner] section keys:', Object.keys(section).join(', '));
 
-  const meetings = section.meetingsFaculty || [];
+  const meetings = section.meetingsFaculty || section.meetings || [];
+
+  const DAY_MAP = { monday:'M', tuesday:'T', wednesday:'W', thursday:'R', friday:'F', saturday:'S', sunday:'U' };
+  const fmt = t => {
+    if (!t) return '';
+    const h = parseInt(t.slice(0,2)), m2 = t.slice(2,4);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    return `${h > 12 ? h - 12 : h || 12}:${m2} ${ampm}`;
+  };
   const times = meetings.map(m => {
     const mt = m.meetingTime || {};
-    const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
-      .filter(d => mt[d])
-      .map(d => d.slice(0,2).replace('mo','M').replace('tu','T').replace('we','W')
-                             .replace('th','R').replace('fr','F').replace('sa','S').replace('su','U'))
-      .join('');
-    const fmt = t => {
-      if (!t) return '';
-      const h = parseInt(t.slice(0,2)), m2 = t.slice(2,4);
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      return `${h > 12 ? h - 12 : h || 12}:${m2} ${ampm}`;
-    };
+    const days = Object.keys(DAY_MAP).filter(d => mt[d]).map(d => DAY_MAP[d]).join('');
     return `${days} ${fmt(mt.beginTime)}${mt.endTime ? ' – ' + fmt(mt.endTime) : ''}`.trim();
   }).filter(Boolean).join(', ');
 
-  const building = meetings[0]?.meetingTime?.building || '';
-  const room     = meetings[0]?.meetingTime?.room     || '';
+  // Building: prefer description over code
+  const mt0 = meetings[0]?.meetingTime || {};
+  const building = mt0.buildingDescription || mt0.building || '';
+  const room     = mt0.room || '';
   const location = [building, room].filter(Boolean).join(' ');
 
-  const faculty  = section.faculty || [];
-  const instructor = faculty.map(f => f.displayName).filter(Boolean).join(', ');
+  // Faculty: try section.faculty first, then inside meetingsFaculty entries
+  let facultyList = section.faculty || [];
+  if (!facultyList.length) {
+    facultyList = meetings.flatMap(m => m.faculty || []);
+  }
+  const instructor = facultyList
+    .map(f => f.displayName || f.instructorDisplayName || f.name || '')
+    .filter(Boolean).join(', ');
+
+  const subject = section.subject || section.subjectCode || '';
+  const courseNum = section.courseNumber || section.number || '';
 
   return {
-    courseId:    `${section.subject} ${section.courseNumber}`,
-    courseTitle: section.courseTitle,
-    credits:     `${section.creditHours || 3} Credit Hours`,
-    crn:         String(section.courseReferenceNumber),
-    section:     section.sequenceNumber,
-    term:        section.termDesc,
-    termCode:    section.term,
+    courseId:    `${subject} ${courseNum}`.trim(),
+    courseTitle: section.courseTitle || section.title || section.sectionTitle || '',
+    credits:     `${section.creditHours ?? section.creditHourLow ?? 3} Credit Hours`,
+    crn:         String(section.courseReferenceNumber || section.crn || ''),
+    section:     section.sequenceNumber || section.section || '',
+    term:        section.termDesc || '',
+    termCode:    section.term || '',
     meetTime:    times || 'See schedule',
     room:        location || 'TBA',
     instructor:  instructor || 'TBA',
-    courseCode:  `${section.subject}${section.courseNumber}`.replace(/\s/g,''),
-    // description and prereq come from the separate getCourseDescription call
+    courseCode:  `${subject}${courseNum}`.replace(/\s/g,''),
   };
 }
 
@@ -146,6 +162,38 @@ router.get('/', async (req, res) => {
       error: 'Could not reach Banner SSB. Please try again.',
       detail: err.message
     });
+  }
+});
+
+// GET /api/banner/debug?crn=99008&term=202690  — returns raw Banner JSON for diagnosis
+router.get('/debug', async (req, res) => {
+  const { crn, term } = req.query;
+  if (!crn || !term) return res.status(400).json({ error: 'crn and term required' });
+
+  const HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Accept': 'application/json, text/html, */*',
+    'Referer': `${BASE}/classSearch/classSearch`,
+    'X-Requested-With': 'XMLHttpRequest',
+  };
+  try {
+    const initRes = await axios.get(`${BASE}/classSearch/classSearch`, { headers: { ...HEADERS, Accept: 'text/html,*/*' }, maxRedirects: 5 });
+    let cookies = extractCookies(initRes);
+    const termPostRes = await axios.post(`${BASE}/term/search`, `term=${term}&studyPath=&studyPathText=&startDatepicker=&endDatepicker=`, {
+      params: { mode: 'search' },
+      headers: { ...HEADERS, 'Content-Type': 'application/x-www-form-urlencoded', 'Cookie': cookies },
+      maxRedirects: 5,
+    });
+    const nc = extractCookies(termPostRes);
+    if (nc) cookies = [cookies, nc].filter(Boolean).join('; ');
+    const searchRes = await axios.get(`${BASE}/searchResults/searchResults`, {
+      params: { txt_term: term, txt_crn: crn, pageOffset: 0, pageMaxSize: 1, sortColumn: 'subjectDescription', sortDirection: 'asc' },
+      headers: { ...HEADERS, 'Cookie': cookies },
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json({ raw: searchRes.data, cookies: cookies.slice(0, 200) });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
   }
 });
 
